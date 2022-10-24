@@ -259,10 +259,18 @@ public class ServiceRequests {
                     schema, vhost, app, stream, force);
         }
         Map<String, Object> param = new TreeMap<>();
-        param.put("schema",  schema);
-        param.put("vhost",  vhost);
-        param.put("app",  app);
-        param.put("stream",  stream);
+        if (Objects.nonNull(schema)) {
+            param.put("schema",  schema);
+        }
+        if (Objects.nonNull(vhost)) {
+            param.put("vhost",  vhost);
+        }
+        if (Objects.nonNull(app)) {
+            param.put("app",  app);
+        }
+        if (Objects.nonNull(stream)) {
+            param.put("stream",  stream);
+        }
         if (Objects.nonNull(force)) {
             param.put("force",  force);
         }
