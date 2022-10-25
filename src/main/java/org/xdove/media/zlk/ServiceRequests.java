@@ -591,7 +591,7 @@ public class ServiceRequests {
      * 创建GB28181 RTP接收端口，如果该端口接收数据超时，则会自动被回收(不用调用closeRtpServer接口)
      * @return
      */
-    public Map<String, Object> openRtpServer(int port, int enableTcp, String streamId) {
+    public Map<String, Object> openRtpServer(int port, int enableTcp, String streamId, Integer reUsePort, String ssrc) {
         if (log.isTraceEnabled()) {
             log.trace("request openRtpServer port=[{}], enableTcp=[{}], streamId=[{}]", port, enableTcp, streamId);
         }
@@ -599,6 +599,12 @@ public class ServiceRequests {
         param.put("port", port);
         param.put("enable_tcp", enableTcp);
         param.put("stream_id", streamId);
+        if (Objects.nonNull(reUsePort)) {
+            param.put("re_use_port", reUsePort);
+        }
+        if (Objects.nonNull(ssrc)) {
+            param.put("ssrc", ssrc);
+        }
         return this.doGet(PATH_OPEN_RTP_SERVER, param);
     }
 

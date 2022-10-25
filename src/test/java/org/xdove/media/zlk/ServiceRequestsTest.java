@@ -176,7 +176,7 @@ public class ServiceRequestsTest {
 
     @Test
     public void openRtpServer() {
-        Map<String, Object> ret = this.req.openRtpServer(0, 0, "streamId");
+        Map<String, Object> ret = this.req.openRtpServer(0, 0, "streamId", 1, "123456789");
         System.out.print(ret);
     }
 
