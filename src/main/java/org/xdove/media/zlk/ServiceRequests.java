@@ -5,9 +5,10 @@ import org.apache.commons.codec.Charsets;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
-import org.apache.http.client.HttpClient;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.utils.URLEncodedUtils;
+import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.logging.log4j.LogManager;
@@ -29,10 +30,12 @@ public class ServiceRequests {
 
     private final static Logger log = LogManager.getLogger();
 
-    private final HttpClient client;
+    private final CloseableHttpClient client;
     private final String host;
     private final String secret;
     private Charset responseCharset;
+    private RequestConfig requestConfig;
+    private boolean isUrlEncode;
 
     /** 获取API列表 */
     public static final String PATH_GET_API_LIST = "/index/api/getApiList";
@@ -106,16 +109,22 @@ public class ServiceRequests {
         this.client =  HttpClientBuilder
                 .create()
                 .build();
+        this.requestConfig = RequestConfig.custom()
+                .build();
         this.host = host;
         this.secret = secret;
         this.responseCharset = Charsets.UTF_8;
+        this.isUrlEncode = false;
     }
 
-    public ServiceRequests(HttpClient client, String host, String secret) {
+    public ServiceRequests(CloseableHttpClient client, String host, String secret, boolean isUrlEncode) {
         this.client = client;
+        this.requestConfig = RequestConfig.custom()
+                .build();
         this.host = host;
         this.secret = secret;
         this.responseCharset = Charsets.UTF_8;
+        this.isUrlEncode = isUrlEncode;
     }
 
     public Charset getResponseCharset() {
@@ -424,8 +433,8 @@ public class ServiceRequests {
         param.put("src_url", srcUrl);
         param.put("dst_url", dstUrl);
         param.put("timeout_ms", timeoutMs);
-        param.put("enable_hls", enableHls);
         param.put("enable_mp4", enableMp4);
+        param.put("enable_hls", enableHls);
         if (Objects.nonNull(ffmpegCmdKey)) {
             param.put("ffmpeg_cmd_key", ffmpegCmdKey);
         }
@@ -597,7 +606,7 @@ public class ServiceRequests {
         }
         Map<String, Object> param = new TreeMap<>();
         param.put("port", port);
-        param.put("enable_tcp", enableTcp);
+        param.put("tcp_mode", enableTcp);
         param.put("stream_id", streamId);
         if (Objects.nonNull(reUsePort)) {
             param.put("re_use_port", reUsePort);
@@ -638,12 +647,12 @@ public class ServiceRequests {
      * @return
      */
     public Map<String, Object> startSendRtp(String vhost, String app, String stream, String ssrc, String dstUrl,
-                                            int dstPort, int isUdp, Integer srcPort, Integer pt, Integer usePs,
+                                            int dstPort, int isUdp, Integer srcPort, Integer fromMp4, Integer pt, Integer usePs,
                                             Integer onlyAudio) {
         if (log.isTraceEnabled()) {
             log.trace("request startSendRtp vhost=[{}], app=[{}], stream=[{}], ssrc=[{}], dst_url=[{}], dst_port=[{}], " +
-                    "is_udp=[{}], src_port=[{}], pt=[{}], use_ps=[{}], only_audio=[{}]", vhost,app,stream,ssrc,dstUrl,
-                    dstPort,isUdp,srcPort,pt,usePs,onlyAudio);
+                    "is_udp=[{}], src_port=[{}], fromMp4=[{}] pt=[{}], use_ps=[{}], only_audio=[{}]", vhost,app,stream,ssrc,dstUrl,
+                    dstPort,isUdp,srcPort, fromMp4,pt,usePs,onlyAudio);
         }
         Map<String, Object> param = new TreeMap<>();
         param.put("vhost", vhost);
@@ -655,6 +664,9 @@ public class ServiceRequests {
         param.put("is_udp", isUdp);
         if (Objects.nonNull(srcPort)) {
             param.put("src_port", srcPort);
+        }
+        if (Objects.nonNull(fromMp4)) {
+            param.put("from_mp4", fromMp4);
         }
         if (Objects.nonNull(pt)) {
             param.put("pt", pt);
@@ -781,13 +793,25 @@ public class ServiceRequests {
             });
         }
         paramPairs.add(new BasicNameValuePair("secret", this.secret));
-        String paramStr = URLEncodedUtils.format(paramPairs, StandardCharsets.UTF_8);
-        return this.host + path + "?" + paramStr;
+        String paramStr = null;
+        if (isUrlEncode) {
+            paramStr = URLEncodedUtils.format(paramPairs, StandardCharsets.UTF_8);
+            return this.host + path + "?" + paramStr;
+        } else {
+            StringBuilder sb = new StringBuilder();
+            sb.append(this.host).append(path).append("?");
+            paramPairs.forEach(e -> sb.append(e.getName())
+                    .append("=")
+                    .append(e.getValue())
+                    .append("&"));
+            return sb.substring(0, sb.length() - 1);
+        }
     }
 
     private Map<String, Object> doGet(String path, Map<String, Object> p) {
         String url = combPath(path, p);
         HttpGet get = new HttpGet(url);
+        get.setConfig(requestConfig);
         if (log.isDebugEnabled()) {
             log.debug("get request path=[{}]]", url);
         }
